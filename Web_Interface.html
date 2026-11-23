@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fb">
+  <title>Orbit — Rotational Angle Monitor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20263a;
+      --muted: #727b91;
+      --paper: #f6f7fb;
+      --card: #ffffff;
+      --line: #e7e9f0;
+      --gold: #d99a1b;
+      --gold-soft: #fff3d7;
+      --teal: #258f84;
+      --teal-soft: #e4f5f1;
+      --violet: #7359bb;
+      --violet-soft: #f0eafd;
+      --red: #cf5b61;
+      --shadow: 0 18px 50px rgba(36, 45, 73, .075);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 88% 4%, rgba(115, 89, 187, .08), transparent 25rem),
+        radial-gradient(circle at 7% 23%, rgba(217, 154, 27, .08), transparent 24rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      letter-spacing: -.015em;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 30px 0 48px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 27px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark { width: 45px; height: 45px; display: grid; place-items: center; color: #fff; border-radius: 15px; background: linear-gradient(140deg, var(--gold), #e8b849); box-shadow: 0 8px 20px rgba(217,154,27,.25); }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-name { font-weight: 790; font-size: 1.15rem; letter-spacing: -.04em; }
+    .brand-sub { color: var(--muted); font-size: .78rem; margin-top: 2px; }
+    .connection-pill { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid var(--line); background: rgba(255,255,255,.78); border-radius: 999px; color: var(--muted); font-size: .82rem; font-weight: 650; }
+    .led { width: 9px; height: 9px; border-radius: 50%; background: #abb1c0; box-shadow: 0 0 0 4px #edf0f5; }
+    .connection-pill.online { color: #23766d; border-color: #cce9e3; background: #f4fcfa; }
+    .connection-pill.online .led { background: var(--teal); box-shadow: 0 0 0 4px #dff3ee; animation: pulse 1.8s infinite; }
+    .connection-pill.offline .led { background: var(--red); box-shadow: 0 0 0 4px #fae8e9; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(37,143,132,.08); } }
+    .intro { margin-bottom: 24px; }
+    .eyebrow { color: var(--violet); font-size: .73rem; font-weight: 800; text-transform: uppercase; letter-spacing: .15em; }
+    h1 { margin: 8px 0 7px; font-size: clamp(1.8rem, 4vw, 2.65rem); line-height: 1.1; letter-spacing: -.055em; }
+    .intro p { margin: 0; max-width: 680px; color: var(--muted); font-size: .98rem; line-height: 1.55; }
+    .layout { display: grid; grid-template-columns: 1.618fr 1fr; gap: 20px; align-items: start; }
+    .card { border: 1px solid rgba(225,228,237,.9); background: rgba(255,255,255,.94); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .measure-card { padding: 24px; }
+    .card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; }
+    .section-kicker { color: var(--muted); font-size: .75rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    .live-label { display: inline-flex; align-items: center; gap: 7px; color: var(--teal); background: var(--teal-soft); padding: 7px 10px; border-radius: 999px; font-size: .72rem; font-weight: 750; }
+    .live-label .led { width: 7px; height: 7px; background: currentColor; box-shadow: none; }
+    .gauge-wrap { display: grid; grid-template-columns: minmax(245px, 1fr) minmax(170px, .8fr); align-items: center; gap: 22px; padding: 22px 4px 13px; }
+    .gauge { position: relative; width: min(100%, 340px); aspect-ratio: 1; margin: 0 auto; display: grid; place-items: center; }
+    .gauge-ring { position: absolute; inset: 7%; border-radius: 50%; background: conic-gradient(from -90deg, var(--gold) var(--sweep, 0deg), #f0f1f6 var(--sweep, 0deg) 360deg); transition: background 220ms ease; }
+    .gauge-ring::after { content: ""; position: absolute; inset: 11px; border-radius: inherit; background: #fff; box-shadow: inset 0 0 0 1px #f0f1f5; }
+    .gauge-ticks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .gauge-ticks text { fill: #969db0; font-size: 10px; font-weight: 700; }
+    .gauge-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .angle-value { font-variant-numeric: tabular-nums; font-size: clamp(2.8rem, 6vw, 4.35rem); line-height: 1; font-weight: 780; letter-spacing: -.075em; transition: color .2s ease; }
+    .angle-value span { color: var(--gold); font-size: .48em; vertical-align: .35em; margin-left: 3px; letter-spacing: -.04em; }
+    .angle-caption { margin-top: 12px; color: var(--muted); font-size: .78rem; font-weight: 650; }
+    .needle { position: absolute; z-index: 2; left: 50%; top: 14%; height: 37%; width: 2px; transform-origin: 50% 100%; transform: translateX(-50%) rotate(var(--needle, 0deg)); transition: transform 240ms cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+    .needle::before { content: ""; position: absolute; top: 0; left: 50%; width: 3px; height: 100%; transform: translateX(-50%); background: linear-gradient(var(--gold), rgba(217,154,27,.12)); border-radius: 4px; }
+    .needle::after { content: ""; position: absolute; top: -4px; left: 50%; width: 11px; height: 11px; transform: translateX(-50%); border: 3px solid #fff; border-radius: 50%; background: var(--gold); box-shadow: 0 2px 8px rgba(32,38,58,.2); }
+    .dial-hub { position: absolute; z-index: 3; width: 13px; height: 13px; border-radius: 50%; background: var(--ink); border: 3px solid white; box-shadow: 0 1px 7px rgba(32,38,58,.25); }
+    .reading-details { display: grid; gap: 10px; }
+    .reading-box { padding: 13px 15px; border: 1px solid var(--line); background: #fcfcfe; border-radius: 15px; }
+    .reading-box .label { color: var(--muted); font-size: .72rem; font-weight: 700; }
+    .reading-box .value { margin-top: 5px; font-size: 1.12rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .reading-box .value small { color: var(--muted); font-size: .72rem; font-weight: 600; }
+    .direction { color: var(--teal); }
+    .direction.reverse { color: var(--violet); }
+    .chart { margin-top: 4px; padding: 14px 15px 8px; border-radius: 15px; background: #fbfbfd; border: 1px solid var(--line); }
+    .chart-title { display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; font-weight: 700; }
+    #trail { width: 100%; height: 64px; display: block; overflow: visible; }
+    .chart-grid { stroke: #eaecf2; stroke-width: 1; }
+    .chart-path { fill: none; stroke: var(--teal); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-dot { fill: var(--gold); stroke: white; stroke-width: 2; }
+    .accuracy-note { margin-top: 14px; padding: 11px 13px; color: #78601f; background: #fff9e9; border: 1px solid #f7e9be; border-radius: 12px; font-size: .76rem; line-height: 1.45; }
+    .side-stack { display: grid; gap: 20px; }
+    .timer-card, .settings-card, .flags-card { padding: 20px; }
+    .timer-display { margin: 13px 0 15px; font-size: 2.6rem; letter-spacing: -.065em; font-weight: 760; font-variant-numeric: tabular-nums; }
+    .button-row { display: flex; gap: 9px; flex-wrap: wrap; }
+    .btn { border: 0; border-radius: 12px; padding: 10px 14px; font-weight: 730; font-size: .83rem; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(115,89,187,.28); outline-offset: 2px; }
+    .btn-primary { color: #fff; background: var(--teal); box-shadow: 0 5px 12px rgba(37,143,132,.18); }
+    .btn-gold { color: #493714; background: #f8e7bb; }
+    .btn-violet { color: #fff; background: var(--violet); box-shadow: 0 5px 12px rgba(115,89,187,.18); }
+    .btn-soft { color: var(--ink); background: #f0f1f6; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .timer-hint { color: var(--muted); font-size: .74rem; margin-top: 11px; line-height: 1.4; }
+    .field-label { display: block; margin: 14px 0 6px; color: var(--muted); font-size: .73rem; font-weight: 730; }
+    .field-control { width: 100%; border: 1px solid var(--line); border-radius: 11px; background: #fff; color: var(--ink); padding: 10px 11px; }
+    .field-inline { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .field-inline .btn { padding: 9px 12px; }
+    .settings-help { color: var(--muted); font-size: .72rem; line-height: 1.45; margin: 8px 0 0; }
+    details { margin-top: 13px; border-top: 1px solid var(--line); padding-top: 12px; }
+    summary { color: var(--violet); font-weight: 720; font-size: .77rem; cursor: pointer; }
+    .help-body { color: var(--muted); font-size: .74rem; line-height: 1.55; padding-top: 8px; }
+    .help-body code { color: var(--ink); background: #f0f1f6; padding: 1px 4px; border-radius: 4px; }
+    .flags-card { padding: 0; overflow: hidden; }
+    .flags-head { padding: 18px 20px 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .flags-title { font-weight: 780; letter-spacing: -.025em; }
+    .flags-count { margin-left: 5px; color: var(--violet); font-size: .74rem; }
+    .flag-list { max-height: 320px; overflow: auto; }
+    .empty-state { margin: 0 20px 18px; padding: 19px 14px; text-align: center; color: var(--muted); background: #fafafe; border: 1px dashed #dfe2eb; border-radius: 14px; font-size: .77rem; }
+    .flag-row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 11px 20px; border-top: 1px solid #f0f1f5; animation: flag-in .25s ease both; }
+    @keyframes flag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .flag-index { width: 31px; height: 31px; display: grid; place-items: center; color: var(--violet); background: var(--violet-soft); border-radius: 10px; font-size: .72rem; font-weight: 800; }
+    .flag-main { min-width: 0; }
+    .flag-angle { font-weight: 750; font-size: .9rem; font-variant-numeric: tabular-nums; }
+    .flag-meta { color: var(--muted); font-size: .69rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .flag-time { color: var(--muted); font-size: .69rem; font-variant-numeric: tabular-nums; }
+    .footer { margin-top: 19px; text-align: center; color: #9299aa; font-size: .69rem; }
+    .toast { position: fixed; z-index: 5; left: 50%; bottom: 22px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 11px 15px; color: #fff; background: #242b40; border-radius: 12px; box-shadow: 0 10px 30px rgba(20,25,44,.22); font-size: .8rem; transition: .25s ease; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 850px) { .layout { grid-template-columns: 1fr; } .side-stack { grid-template-columns: 1fr 1fr; } .flags-card { grid-column: 1 / -1; } }
+    @media (max-width: 600px) { .app { width: min(100% - 22px, 520px); padding-top: 17px; } header { align-items: flex-start; } .connection-pill { padding: 8px 10px; font-size: .72rem; } .brand-mark { width: 39px; height: 39px; } .brand-sub { font-size: .7rem; } .gauge-wrap { grid-template-columns: 1fr; padding-top: 12px; gap: 14px; } .gauge { width: min(80vw, 320px); } .reading-details { grid-template-columns: 1fr 1fr; } .measure-card { padding: 17px; } .side-stack { grid-template-columns: 1fr; } .flags-card { grid-column: auto; } .timer-display { font-size: 2.4rem; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 1 1-8.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 3v6h6M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div><div class="brand-name">ORBIT</div><div class="brand-sub">Rotational measurement studio</div></div>
+      </div>
+      <div class="connection-pill" id="connection"><span class="led"></span><span id="connectionText">Waiting for ESP32</span></div>
+    </header>
+
+    <section class="intro">
+      <div class="eyebrow">Live instrument · 01</div>
+      <h1>Angle, in motion.</h1>
+      <p>Watch the shaft turn in real time. Start a run, drop flags at key positions, and export the readings when you’re done.</p>
+    </section>
+
+    <div class="layout">
+      <section class="card measure-card" aria-label="Live angle measurement">
+        <div class="card-heading">
+          <div><div class="section-kicker">Live measurement</div><div id="sourceLabel" style="margin-top:5px;color:var(--muted);font-size:.77rem">Angle from ESP32</div></div>
+          <div class="live-label"><span class="led"></span>LIVE</div>
+        </div>
+        <div class="gauge-wrap">
+          <div class="gauge" id="gauge" aria-label="Circular angle gauge">
+            <div class="gauge-ring" id="gaugeRing"></div>
+            <svg class="gauge-ticks" viewBox="0 0 300 300" aria-hidden="true">
+              <text x="150" y="15" text-anchor="middle">0°</text>
+              <text x="285" y="155" text-anchor="middle">90°</text>
+              <text x="150" y="294" text-anchor="middle">180°</text>
+              <text x="15" y="155" text-anchor="middle">270°</text>
+            </svg>
+            <div class="needle" id="needle"></div><div class="dial-hub"></div>
+            <div class="gauge-center"><div class="angle-value" id="angleValue">—<span>°</span></div><div class="angle-caption">ROTATIONAL POSITION</div></div>
+          </div>
+          <div class="reading-details">
+            <div class="reading-box"><div class="label">Direction</div><div class="value direction" id="direction">Waiting…</div></div>
+            <div class="reading-box"><div class="label">Encoder count</div><div class="value" id="count">—</div></div>
+            <div class="reading-box"><div class="label">Full turns</div><div class="value" id="turns">—</div></div>
+            <div class="reading-box"><div class="label">Total angle</div><div class="value" id="totalAngle">— <small>deg</small></div></div>
+          </div>
+        </div>
+        <div class="chart">
+          <div class="chart-title"><span>Recent angle trace</span><span id="lastSeen">No signal yet</span></div>
+          <svg id="trail" viewBox="0 0 600 64" preserveAspectRatio="none" role="img" aria-label="Recent angle history">
+            <path class="chart-grid" d="M0 12H600 M0 32H600 M0 52H600" />
+            <path class="chart-path" id="trailPath" d="" />
+            <circle class="chart-dot" id="trailDot" cx="0" cy="32" r="4" />
+          </svg>
+        </div>
+        <div class="accuracy-note" id="accuracyNote">Angle accuracy depends on the encoder’s counts-per-revolution calibration. The display uses the angle reported by your ESP32.</div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="card timer-card" aria-label="Stopwatch controls">
+          <div class="section-kicker">Run stopwatch</div>
+          <div class="timer-display" id="timer">00:00.00</div>
+          <div class="button-row">
+            <button class="btn btn-primary" id="startPause">Start</button>
+            <button class="btn btn-soft" id="resetTimer">Reset</button>
+            <button class="btn btn-violet" id="flagButton" disabled>⚑ &nbsp;Flag</button>
+          </div>
+          <div class="timer-hint">Start the timer, then flag any angle you want to record. Each flag stores the time, angle, direction, and encoder count.</div>
+        </section>
+
+        <section class="card settings-card" aria-label="Connection settings">
+          <div class="section-kicker">Connection & calibration</div>
+          <label class="field-label" for="apiUrl">ESP32 API address</label>
+          <div class="field-inline"><input class="field-control" id="apiUrl" type="url" value="http://192.168.4.1" spellcheck="false"><button class="btn btn-gold" id="connectButton">Connect</button></div>
+          <label class="field-label" for="angleMode">Angle source</label>
+          <select class="field-control" id="angleMode"><option value="device">Use angle reported by ESP32</option><option value="count">Calculate from encoder count</option></select>
+          <div id="cprWrap" hidden><label class="field-label" for="cpr">Counts per complete revolution</label><input class="field-control" id="cpr" type="number" min="1" step="1" value="20"><p class="settings-help">Set this to the measured count change for one full shaft turn. Until calibrated, this is only an estimate.</p></div>
+          <details>
+            <summary>Connection help</summary>
+            <div class="help-body">This page runs on your computer (for example, with VS Code Live Server). Connect the computer to the ESP32’s Wi‑Fi or the same router, then use the ESP32 address. The firmware must provide <code>/data</code> and allow browser CORS requests. The expected data includes <code>angle</code> and <code>count</code>.</div>
+          </details>
+        </section>
+
+        <section class="card flags-card" aria-label="Saved angle flags">
+          <div class="flags-head"><div><span class="flags-title">Run flags</span><span class="flags-count" id="flagCount">0 saved</span></div><div class="button-row"><button class="btn btn-soft" id="exportFlags" disabled>Export CSV</button><button class="btn btn-soft" id="clearFlags" disabled>Clear</button></div></div>
+          <div class="flag-list" id="flagList"><div class="empty-state" id="emptyFlags">Start the stopwatch and press <strong>Flag</strong> to save a reading here.</div></div>
+        </section>
+      </aside>
+    </div>
+    <div class="footer">ORBIT · Local measurements stay in this browser session</div>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      connection: $('connection'), connectionText: $('connectionText'), angle: $('angleValue'), direction: $('direction'), count: $('count'), turns: $('turns'), totalAngle: $('totalAngle'),
+      ring: $('gaugeRing'), needle: $('needle'), lastSeen: $('lastSeen'), path: $('trailPath'), dot: $('trailDot'), note: $('accuracyNote'), api: $('apiUrl'), mode: $('angleMode'), cpr: $('cpr'), cprWrap: $('cprWrap'), source: $('sourceLabel'),
+      timer: $('timer'), startPause: $('startPause'), resetTimer: $('resetTimer'), flag: $('flagButton'), list: $('flagList'), empty: $('emptyFlags'), flagCount: $('flagCount'), export: $('exportFlags'), clear: $('clearFlags'), toast: $('toast')
+    };
+    const state = { sample: null, previousCount: null, direction: 'STATIONARY', samples: [], flags: [], running: false, elapsedBefore: 0, runStartedAt: 0, pollTimer: 0, toastTimer: 0, lastSuccess: 0 };
+    const saved = JSON.parse(localStorage.getItem('orbit-settings') || '{}');
+    if (saved.api) els.api.value = saved.api;
+    if (saved.mode) els.mode.value = saved.mode;
+    if (saved.cpr) els.cpr.value = saved.cpr;
+    const normaliseBase = (value) => value.trim().replace(/\/+$/, '');
+    const elapsedMs = () => state.elapsedBefore + (state.running ? performance.now() - state.runStartedAt : 0);
+    const formatTime = (ms, centiseconds = true) => {
+      const total = Math.max(0, ms);
+      const minutes = Math.floor(total / 60000);
+      const seconds = Math.floor(total / 1000) % 60;
+      const fraction = centiseconds ? `.${String(Math.floor(total / 10) % 100).padStart(2, '0')}` : '';
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${fraction}`;
+    };
+    const saveSettings = () => localStorage.setItem('orbit-settings', JSON.stringify({ api: els.api.value, mode: els.mode.value, cpr: els.cpr.value }));
+    function showToast(message) {
+      els.toast.textContent = message; els.toast.classList.add('show'); clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2600);
+    }
+    function setConnection(online, message) {
+      els.connection.classList.toggle('online', online); els.connection.classList.toggle('offline', !online);
+      els.connectionText.textContent = message;
+    }
+    function currentReading() {
+      if (!state.sample) return null;
+      const count = Number(state.sample.count ?? 0);
+      const cpr = Math.max(1, Number(els.cpr.value) || 1);
+      let total;
+      if (els.mode.value === 'count') total = count * 360 / cpr;
+      else if (Number.isFinite(Number(state.sample.revolutions))) total = Number(state.sample.revolutions) * 360;
+      else if (Number.isFinite(Number(state.sample.angle))) total = Number(state.sample.angle) + Number(state.sample.turns ?? 0) * 360;
+      else total = count * 360 / cpr;
+      const wrapped = ((total % 360) + 360) % 360;
+      return { count, total, wrapped, turns: total / 360 };
+    }
+    function renderTrail() {
+      if (!state.samples.length) return;
+      const pts = state.samples;
+      const d = pts.map((v, i) => `${i ? 'L' : 'M'} ${(i / Math.max(1, pts.length - 1) * 600).toFixed(1)} ${(58 - v / 360 * 52).toFixed(1)}`).join(' ');
+      els.path.setAttribute('d', d);
+      const last = pts[pts.length - 1];
+      els.dot.setAttribute('cx', String((pts.length - 1) / Math.max(1, pts.length - 1) * 600));
+      els.dot.setAttribute('cy', String(58 - last / 360 * 52));
+    }
+    function renderReading() {
+      const r = currentReading();
+      if (!r) return;
+      els.angle.innerHTML = `${r.wrapped.toFixed(2)}<span>°</span>`;
+      els.ring.style.setProperty('--sweep', `${r.wrapped}deg`);
+      els.needle.style.setProperty('--needle', `${r.wrapped}deg`);
+      els.count.textContent = Number.isFinite(r.count) ? String(r.count) : '—';
+      els.turns.textContent = `${r.turns.toFixed(2)} <small>rev</small>`;
+      els.totalAngle.innerHTML = `${r.total.toFixed(2)} <small>deg</small>`;
+      els.direction.textContent = state.direction;
+      els.direction.classList.toggle('reverse', state.direction === 'ANTICLOCKWISE');
+      els.source.textContent = els.mode.value === 'count' ? 'Calculated from count & calibration' : 'Angle from ESP32';
+      els.note.textContent = els.mode.value === 'count'
+        ? `Using ${Math.round(Number(els.cpr.value) || 0)} counts/revolution. For accurate readings, calibrate this value by turning the shaft exactly one full revolution and measuring the count change.`
+        : 'Angle accuracy depends on the counts-per-revolution value used by your ESP32 firmware. The website displays the angle reported by the device.';
+      state.samples.push(r.wrapped); if (state.samples.length > 70) state.samples.shift(); renderTrail();
+    }
+    function renderFlags() {
+      els.list.querySelectorAll('.flag-row').forEach(node => node.remove());
+      els.empty.hidden = state.flags.length > 0;
+      els.flagCount.textContent = `${state.flags.length} saved`;
+      els.export.disabled = els.clear.disabled = state.flags.length === 0;
+      state.flags.forEach((f, i) => {
+        const row = document.createElement('div'); row.className = 'flag-row';
+        row.innerHTML = `<div class="flag-index">${String(i + 1).padStart(2, '0')}</div><div class="flag-main"><div class="flag-angle">${f.angle.toFixed(2)}° <span style="color:var(--muted);font-size:.72rem;font-weight:600">${escapeHtml(f.direction)}</span></div><div class="flag-meta">Count ${f.count} · ${f.total.toFixed(2)}° total</div></div><div class="flag-time">${f.time}</div>`;
+        els.list.appendChild(row);
+      });
+    }
+    function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function updateTimer() { els.timer.textContent = formatTime(elapsedMs()); requestAnimationFrame(updateTimer); }
+    async function poll() {
+      const base = normaliseBase(els.api.value);
+      if (!base) { setConnection(false, 'Enter ESP32 address'); return; }
+      try {
+        const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 1800);
+        const response = await fetch(`${base}/data`, { cache: 'no-store', signal: controller.signal, mode: 'cors' }); clearTimeout(timeout);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!('count' in data) && !('angle' in data)) throw new Error('API response has no angle/count fields');
+        const count = Number(data.count ?? 0);
+        if (state.previousCount !== null && count !== state.previousCount) state.direction = count > state.previousCount ? 'CLOCKWISE' : 'ANTICLOCKWISE';
+        state.previousCount = count; state.sample = data; state.lastSuccess = Date.now();
+        setConnection(true, 'ESP32 connected'); els.lastSeen.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        els.flag.disabled = !state.running;
+        renderReading();
+      } catch (error) {
+        setConnection(false, error.name === 'AbortError' ? 'ESP32 timed out' : 'ESP32 not reachable');
+        els.lastSeen.textContent = error.message === 'Failed to fetch' ? 'Check Wi‑Fi and CORS' : 'Waiting for data';
+      }
+    }
+    function connect() { saveSettings(); clearInterval(state.pollTimer); poll(); state.pollTimer = setInterval(poll, 250); }
+    async function zeroDevice() {
+      const base = normaliseBase(els.api.value);
+      try {
+        const response = await fetch(`${base}/zero`, { method: 'GET', cache: 'no-store', mode: 'cors' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        state.previousCount = null; state.direction = 'STATIONARY'; showToast('ESP32 zero position set'); setTimeout(poll, 150);
+      } catch (error) { showToast('Zero failed — confirm the ESP32 has a /zero route and CORS enabled'); }
+    }
+    els.startPause.addEventListener('click', () => {
+      if (state.running) { state.elapsedBefore = elapsedMs(); state.running = false; els.startPause.textContent = 'Resume'; els.flag.disabled = true; }
+      else { state.running = true; state.runStartedAt = performance.now(); els.startPause.textContent = 'Pause'; els.flag.disabled = !state.sample; }
+    });
+    els.resetTimer.addEventListener('click', () => { state.running = false; state.elapsedBefore = 0; els.startPause.textContent = 'Start'; els.flag.disabled = true; });
+    els.flag.addEventListener('click', () => {
+      const r = currentReading(); if (!r || !state.running) return;
+      state.flags.unshift({ time: formatTime(elapsedMs()), angle: r.wrapped, total: r.total, count: r.count, direction: state.direction });
+      renderFlags(); showToast(`Flag ${String(state.flags.length).padStart(2, '0')} saved`);
+    });
+    els.export.addEventListener('click', () => {
+      const rows = [['Flag','Stopwatch time','Angle (deg)','Total angle (deg)','Encoder count','Direction'], ...state.flags.slice().reverse().map((f, i) => [i + 1, f.time, f.angle.toFixed(2), f.total.toFixed(2), f.count, f.direction])];
+      const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = `orbit-angle-flags-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(link.href);
+    });
+    els.clear.addEventListener('click', () => { state.flags = []; renderFlags(); });
+    $('connectButton').addEventListener('click', connect);
+    els.api.addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+    els.api.addEventListener('change', saveSettings);
+    els.mode.addEventListener('change', () => { els.cprWrap.hidden = els.mode.value !== 'count'; saveSettings(); renderReading(); });
+    els.cpr.addEventListener('input', () => { saveSettings(); if (els.mode.value === 'count') renderReading(); });
+    document.addEventListener('keydown', e => { if (e.code === 'Space' && !['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)) { e.preventDefault(); els.startPause.click(); } });
+    updateTimer(); renderFlags(); connect();
+  </script>
+</body>
+</html>
